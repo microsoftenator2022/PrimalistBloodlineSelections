@@ -180,8 +180,10 @@ namespace PrimalistBloodlineSelections
             {
                 ragePowers.AddPrerequisiteFeature(primalistProgression, init: Functional.Ignore);
                 ragePowers.AddPrerequisiteNoFeature(ragePowers, init: prereq => prereq.HideInUI = true);
+                ragePowers.LevelEntries.ForEach(le => le.Level = 1);
                 ragePowers.HideNotAvailibleInUI = true;
                 ragePowers.Groups = new[] { FeatureGroup.Feat };
+                ragePowers.GiveFeaturesForPreviousLevels = true;
             }
 
             var bloodlinePowers = BloodlinePowerHelpers.GetPowersByBloodline();
@@ -221,12 +223,7 @@ namespace PrimalistBloodlineSelections
 
                         feat.AddComponent(new PrerequisiteInProgression(sharedBloodlines));
 
-                        feat.HideNotAvailibleInUI =
-                            //#if DEBUG
-                            //false;
-                            //#else
-                            true;
-                            //#endif
+                        feat.HideNotAvailibleInUI = false;
 
                         foreach (var bs in bloodlineSelections.Where(s => s.level == level))
                         {
