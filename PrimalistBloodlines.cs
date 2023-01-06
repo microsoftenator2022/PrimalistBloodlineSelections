@@ -81,85 +81,28 @@ namespace PrimalistBloodlineSelections
     public static class PrimalistBloodlineFixes
     {
 
-        internal static IEnumerable<BlueprintFeatureBase> BloodlinePowerForLevel(
-            BlueprintProgression bloodline, int level) =>
-            bloodline.GetLevelEntry(level).Features
-                .Where(f =>
-                    f.Components
-                        .OfType<PrerequisiteNoFeature>()
-                        .Where(p => p.Feature.AssetGuid == BlueprintGuid.Parse(OwlcatBlueprints.Guids.PrimalistProgression))
-                        .Any());
 
-        internal class BloodlinePowers
-        {
-            public Dictionary<int, IEnumerable<BlueprintFeatureBase>> AllPowers { get; } = new();
-
-            public IEnumerable<BlueprintFeatureBase> Level4
-            {
-                get => AllPowers[4];
-                set => AllPowers[4] = value;
-            }
-
-            public IEnumerable<BlueprintFeatureBase> Level8
-            {
-                get => AllPowers[8];
-                set => AllPowers[8] = value;
-            }
-
-            public IEnumerable<BlueprintFeatureBase> Level12
-            {
-                get => AllPowers[12];
-                set => AllPowers[12] = value;
-            }
-
-            public IEnumerable<BlueprintFeatureBase> Level16
-            {
-                get => AllPowers[16];
-                set => AllPowers[16] = value;
-            }
-
-            public IEnumerable<BlueprintFeatureBase> Level20
-            {
-                get => AllPowers[20];
-                set => AllPowers[20] = value;
-            }
-        }
-
-        internal static Dictionary<BlueprintProgression, BloodlinePowers> GetBloodragerBloodlinePowers()
-        {
-            var bloodlineSelection = OwlcatBlueprints.BloodragerBloodlineSelection.GetBlueprint();
-            var bloodlines = bloodlineSelection.m_AllFeatures.Select(f => f.Get()).OfType<BlueprintProgression>();
-
-            Main.Log?.Debug($"{bloodlines.Count()} bloodlines");
-
-            var powers = bloodlines.Select(bloodline =>
-                (bloodline, new BloodlinePowers()
-                {
-                    Level4 = BloodlinePowerForLevel(bloodline, 4),
-                    Level8 = BloodlinePowerForLevel(bloodline, 8),
-                    Level12 = BloodlinePowerForLevel(bloodline, 12),
-                    Level16 = BloodlinePowerForLevel(bloodline, 16),
-                    Level20 = BloodlinePowerForLevel(bloodline, 20)
-                }));
-
-            return powers.ToDictionary();
-        }
-
-        internal class PrerequisiteInProgression : PrerequisiteFeature
+        internal class PrerequisiteInProgression : PrerequisiteFeaturesFromList
         {
             public PrerequisiteInProgression() : base() { }
 
-            public PrerequisiteInProgression(BlueprintProgression progression) : this() =>
-                m_Feature = progression.ToReference<BlueprintFeatureReference>();
+            public PrerequisiteInProgression(IEnumerable<BlueprintProgression> progressions) : this()
+            {
+                m_Features = progressions.Select(p => p.ToReference<BlueprintFeatureReference>()).ToArray();
+                Amount = 1;
+            }
 
-            public BlueprintProgression? Progression => Feature as BlueprintProgression;
+            public PrerequisiteInProgression(BlueprintProgression progression) : this(new[] { progression }) { }
+            
+            public IEnumerable<BlueprintProgression>? Progressions => 
+                Features.OfType<BlueprintProgression>();
 
             public override bool CheckInternal(FeatureSelectionState selectionState, UnitDescriptor unit, LevelUpState state)
             {
-                if (Progression is null || !base.CheckInternal(selectionState, unit, state)) return false;
+                if (!base.CheckInternal(selectionState, unit, state)) return false;
 
                 if (selectionState?.SourceFeature is var source)
-                    return source == Progression;
+                    return Progressions.Contains(source);
 
                 return false;
             }
@@ -229,6 +172,8 @@ namespace PrimalistBloodlineSelections
                         .Where(p => p.level == level)
                         .Select(p => p.powers.ToReference<BlueprintFeatureReference>())
                         .ToArray());
+
+                selection.Groups = new[] { FeatureGroup.Feat };
             }
 
             foreach (var (_, ragePowers) in ragePowerEntries)
@@ -236,9 +181,10 @@ namespace PrimalistBloodlineSelections
                 ragePowers.AddPrerequisiteFeature(primalistProgression, init: Functional.Ignore);
                 ragePowers.AddPrerequisiteNoFeature(ragePowers, init: prereq => prereq.HideInUI = true);
                 ragePowers.HideNotAvailibleInUI = true;
+                ragePowers.Groups = new[] { FeatureGroup.Feat };
             }
 
-            var bloodlinePowers = GetBloodragerBloodlinePowers();
+            var bloodlinePowers = BloodlinePowerHelpers.GetPowersByBloodline();
 
             foreach (var bloodline in bloodlinePowers.Keys)
             {
@@ -251,29 +197,52 @@ namespace PrimalistBloodlineSelections
 
                     foreach (var feat in feats)
                     {
-                        if (feat is not BlueprintFeature f) continue;
+                        Main.Log?.Debug($" - Patching feature {feat.Name}");
 
-                        Main.Log?.Debug($" - Patching feature {f.Name}");
-
-                        f.RemoveComponents(c =>
+                        feat.RemoveComponents(c =>
                             c is PrerequisiteNoFeature p
                             && p.Feature.AssetGuid == primalistProgression.AssetGuid);
 
-                        f.AddComponent(new PrerequisiteInProgression(bloodline));
+                        var sharedBloodlines = new List<BlueprintProgression>
+                        {
+                            bloodline
+                        };
 
-                        f.HideNotAvailibleInUI = true;
+                        if (feat.Components.Where(c => c is PrerequisiteInProgression).Any())
+                        {
+                            sharedBloodlines.AddRange(
+                                feat.Components
+                                    .OfType<PrerequisiteInProgression>()
+                                    .SelectMany(p => p.Progressions)
+                                    .Where(p => !sharedBloodlines.Contains(p)));
+
+                            feat.RemoveComponents(c => c is PrerequisiteInProgression);
+                        }
+
+                        feat.AddComponent(new PrerequisiteInProgression(sharedBloodlines));
+
+                        feat.HideNotAvailibleInUI =
+                            //#if DEBUG
+                            //false;
+                            //#else
+                            true;
+                            //#endif
 
                         foreach (var bs in bloodlineSelections.Where(s => s.level == level))
                         {
-                            bs.selection.AddFeature(f);
+                            bs.selection.AddFeature(feat);
 
-                            f.AddComponent(new PrerequisiteCustom()
+                            if(feat.Components.OfType<PrerequisiteCustom>().Any()) continue;
+
+                            feat.AddComponent(new PrerequisiteCustom()
                             {
                                 GenerateUIText = _ => primalistProgression.Name,
                                 Predicate = (selectionState, unit, state) =>
                                 {
-                                    return !unit.Progression.Features.HasFact(primalistProgression)
-                                        || selectionState?.Selection == bs.selection;
+                                    return (unit.Progression.Features.HasFact(primalistProgression)
+                                        && selectionState?.Selection == bs.selection)
+                                        || (!unit.Progression.Features.HasFact(primalistProgression)
+                                        && selectionState?.Selection != bs.selection);
                                 },
 
                                 CheckInProgression = true
