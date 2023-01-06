@@ -5,6 +5,8 @@ VisualStudioVersion = 17.5.33209.295
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PrimalistBloodlineSelections", "PrimalistBloodlineSelections.csproj", "{F79843AB-689A-443A-A81C-5D145983917B}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Microsoftenator.Wotr.Common", "..\Microsoftenator.Wotr.Common\Microsoftenator.Wotr.Common.csproj", "{683249E6-290B-4F7B-B624-A3313D0E5F4B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{F79843AB-689A-443A-A81C-5D145983917B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F79843AB-689A-443A-A81C-5D145983917B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F79843AB-689A-443A-A81C-5D145983917B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{683249E6-290B-4F7B-B624-A3313D0E5F4B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{683249E6-290B-4F7B-B624-A3313D0E5F4B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{683249E6-290B-4F7B-B624-A3313D0E5F4B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{683249E6-290B-4F7B-B624-A3313D0E5F4B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
