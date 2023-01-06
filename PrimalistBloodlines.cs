@@ -18,7 +18,6 @@ using Microsoftenator.Wotr.Common;
 using Microsoftenator.Wotr.Common.Blueprints;
 using Microsoftenator.Wotr.Common.Blueprints.Extensions;
 using Microsoftenator.Wotr.Common.Util;
-using PrimalistBloodlineSelections;
 
 namespace PrimalistBloodlineSelections
 {
@@ -79,7 +78,7 @@ namespace PrimalistBloodlineSelections
             new(Guids.PrimalistTakeRagePowers20);
     }
 
-    public static class PrimalistRageSelections
+    public static class PrimalistBloodlineFixes
     {
 
         internal static IEnumerable<BlueprintFeatureBase> BloodlinePowerForLevel(
@@ -209,7 +208,7 @@ namespace PrimalistBloodlineSelections
 
         internal static void PatchPrimalistProgression()
         {
-            Main.Log?.Debug($"{nameof(PrimalistRageSelections)}.{nameof(PatchPrimalistProgression)}");
+            Main.Log?.Debug($"{nameof(PrimalistBloodlineFixes)}.{nameof(PatchPrimalistProgression)}");
 
             var primalistProgression = OwlcatBlueprints.PrimalistProgression.GetBlueprint();
 

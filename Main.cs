@@ -84,7 +84,7 @@ namespace PrimalistBloodlineSelections
 
                 Main.Log?.Debug($"{nameof(BlueprintsCache_Init_Patch)}.{nameof(Postfix)}");
 
-                PrimalistRageSelections.PatchPrimalistProgression();
+                PrimalistBloodlineFixes.PatchPrimalistProgression();
 
                 Localization.Default.LoadAll();
             }
