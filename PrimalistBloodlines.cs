@@ -80,8 +80,6 @@ namespace PrimalistBloodlineSelections
 
     public static class PrimalistBloodlineFixes
     {
-
-
         internal class PrerequisiteInProgression : PrerequisiteFeaturesFromList
         {
             public PrerequisiteInProgression() : base() { }
@@ -149,10 +147,47 @@ namespace PrimalistBloodlineSelections
             progression.LevelEntries[index] = mutator(progression.LevelEntries[index]);
         }
 
+        internal static IEnumerable<BlueprintInfo> SharedBlueprints
+        {
+            get
+            {
+                var bps1 = new BlueprintInfo[]
+                {
+                    OwlcatBlueprints.PrimalistProgression,
+                    OwlcatBlueprints.PrimalistLevel4Selection,
+                    OwlcatBlueprints.PrimalistLevel8Selection,
+                    OwlcatBlueprints.PrimalistLevel12Selection,
+                    OwlcatBlueprints.PrimalistLevel16Selection,
+                    OwlcatBlueprints.PrimalistLevel20Selection,
+                    OwlcatBlueprints.PrimalistTakeRagePowers4,
+                    OwlcatBlueprints.PrimalistTakeRagePowers8,
+                    OwlcatBlueprints.PrimalistTakeRagePowers12,
+                    OwlcatBlueprints.PrimalistTakeRagePowers16,
+                    OwlcatBlueprints.PrimalistTakeRagePowers20
+                };
+
+                var bps2 = BloodlinePowerHelpers.GetPowersByBloodline()
+                    .SelectMany(bloodline =>
+                    {
+                        var bloodlineBp = new OwlcatBlueprint<BlueprintProgression>(bloodline.Key.AssetGuid.ToString());
+                        var powers =
+                            bloodline.Value.AllPowers
+                                .SelectMany(powers =>
+                                    powers.Value.Select(bp => new OwlcatBlueprint<BlueprintFeature>(bp.AssetGuid.ToString())));
+
+                        return Enumerable.Append<BlueprintInfo>(powers, bloodlineBp);
+                    }).DistinctBy(bp => bp.GuidString);
+
+                return bps1.Concat(bps2);
+            }
+        }
+
         internal static void PatchPrimalistProgression()
         {
             Main.Log?.Debug($"{nameof(PrimalistBloodlineFixes)}.{nameof(PatchPrimalistProgression)}");
 
+            Main.AddSharedBlueprints(SharedBlueprints);
+            
             var primalistProgression = OwlcatBlueprints.PrimalistProgression.GetBlueprint();
 
             var ragePowerEntries = GetRagePowerEntries();
@@ -173,6 +208,7 @@ namespace PrimalistBloodlineSelections
                         .Select(p => p.powers.ToReference<BlueprintFeatureReference>())
                         .ToArray());
 
+                // Fix for UI weirdness (especially in mythic level up)
                 selection.Groups = new[] { FeatureGroup.Feat };
             }
 
@@ -180,10 +216,15 @@ namespace PrimalistBloodlineSelections
             {
                 ragePowers.AddPrerequisiteFeature(primalistProgression, init: Functional.Ignore);
                 ragePowers.AddPrerequisiteNoFeature(ragePowers, init: prereq => prereq.HideInUI = true);
-                ragePowers.LevelEntries.ForEach(le => le.Level = 1);
+
                 ragePowers.HideNotAvailibleInUI = true;
-                ragePowers.Groups = new[] { FeatureGroup.Feat };
+
+                // Make sure powers work if character (or class?) level doesn't match progression level
+                ragePowers.LevelEntries.ForEach(le => le.Level = 1);
                 ragePowers.GiveFeaturesForPreviousLevels = true;
+
+                // Fix for UI weirdness (especially in mythic level up)
+                ragePowers.Groups = new[] { FeatureGroup.Feat };
             }
 
             var bloodlinePowers = BloodlinePowerHelpers.GetPowersByBloodline();
@@ -205,6 +246,7 @@ namespace PrimalistBloodlineSelections
                             c is PrerequisiteNoFeature p
                             && p.Feature.AssetGuid == primalistProgression.AssetGuid);
 
+                        // Handle powers shared between bloodlines (eg. Elemental or Dragon)
                         var sharedBloodlines = new List<BlueprintProgression>
                         {
                             bloodline
@@ -223,28 +265,38 @@ namespace PrimalistBloodlineSelections
 
                         feat.AddComponent(new PrerequisiteInProgression(sharedBloodlines));
 
-                        feat.HideNotAvailibleInUI = false;
-
-                        foreach (var bs in bloodlineSelections.Where(s => s.level == level))
+                        foreach (var (_, selection) in bloodlineSelections.Where(s => s.level == level))
                         {
-                            bs.selection.AddFeature(feat);
+                            selection.AddFeature(feat);
 
                             if(feat.Components.OfType<PrerequisiteCustom>().Any()) continue;
 
+                            // Only show selection in the UI when available
                             feat.AddComponent(new PrerequisiteCustom()
                             {
                                 GenerateUIText = _ => primalistProgression.Name,
                                 Predicate = (selectionState, unit, state) =>
                                 {
-                                    return (unit.Progression.Features.HasFact(primalistProgression)
-                                        && selectionState?.Selection == bs.selection)
-                                        || (!unit.Progression.Features.HasFact(primalistProgression)
-                                        && selectionState?.Selection != bs.selection);
+                                    return
+                                    (
+                                        (
+                                            unit.Progression.Features.HasFact(primalistProgression)
+                                            && selectionState?.Selection == selection
+                                        )
+                                        ||
+                                        (
+                                            !unit.Progression.Features.HasFact(primalistProgression)
+                                            //&& selectionState?.Selection != selection
+                                        )
+                                    );
                                 },
 
                                 CheckInProgression = true
                             });
                         }
+
+                        // If this is true, bloodline powers disappear from the progression after making a primalist selection
+                        feat.HideNotAvailibleInUI = false;
                     }
 
                     levelEntryFeatures =

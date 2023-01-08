@@ -1,12 +1,23 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Reflection.Emit;
 
 using HarmonyLib;
+
+using Kingmaker.Blueprints;
 using Kingmaker.Blueprints.JsonSystem;
 using Kingmaker.Localization;
+
+using Microsoftenator.Wotr.Common;
+using Microsoftenator.Wotr.Common.Blueprints;
 using Microsoftenator.Wotr.Common.Localization;
 using Microsoftenator.Wotr.Common.Util;
 
 using UnityModManagerNet;
+
+using static Kingmaker.Blueprints.JsonSystem.BlueprintsCache;
 
 namespace PrimalistBloodlineSelections
 {
@@ -31,6 +42,10 @@ namespace PrimalistBloodlineSelections
         }
 
         internal static UnityModManager.ModEntry? ModEntry { get; private set; }
+
+        internal static readonly int SharedModVersion = 0;
+        internal static Func<IEnumerable<BlueprintInfo>, bool> AddSharedBlueprints { get; private set; } = _ => false;
+
         static internal Logger? Log { get; private set; }
         internal static bool Enabled { get; private set; } = false;
 
@@ -52,6 +67,9 @@ namespace PrimalistBloodlineSelections
 
             var harmony = new Harmony(modEntry.Info.Id);
 
+            SharedMods.Register(modEntry.Info.Id, SharedModVersion);
+            AddSharedBlueprints = blueprints => SharedMods.AddBlueprints(modEntry.Info.Id, SharedModVersion, blueprints);
+
             harmony.PatchAll();
 
             return true;
@@ -70,6 +88,19 @@ namespace PrimalistBloodlineSelections
         [HarmonyAfter("TabletopTweaks-Core", "TabletopTweaks-Base")]
         internal class BlueprintsCache_Init_Patch
         {
+            //static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+            //{
+            //    var addMethod = ResourcesLibrary.BlueprintsCache.m_LoadedBlueprints.GetType().GetMethod("Add");
+            //    var setMethod = ResourcesLibrary.BlueprintsCache.m_LoadedBlueprints.GetType().GetMethod("set_Item");
+
+            //    return instructions.Select(i =>
+            //    {
+            //        if (i.opcode == OpCodes.Callvirt && i.Calls(addMethod))
+            //            i.operand = setMethod;
+            //        return i;
+            //    });
+            //}
+
             private static bool patched;
 
             static void Postfix()
